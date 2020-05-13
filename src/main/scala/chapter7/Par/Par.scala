@@ -1,4 +1,4 @@
-package chapter7.parallelism_deadlock
+package chapter7.parallelism
 
 import java.util.concurrent.{Callable, ExecutorService, Future, TimeUnit}
 
@@ -28,7 +28,7 @@ object Par {
         def call = a(es).get
       })
 
-  def lazyUnit[A](a: A): Par[A] = fork(unit(a))
+  def lazyUnit[A](a: => A): Par[A] = fork(unit(a))
 
   def map[A, B](pa: Par[A])(f: A => B): Par[B] =
     map2(pa, unit(()))((a, _) => f(a))
@@ -53,4 +53,42 @@ object Par {
 
   def equal[A](e: ExecutorService)(p: Par[A], p2: Par[A]): Boolean =
     p(e).get == p2(e).get
+
+  def choice[A](cond: Par[Boolean])(t: Par[A], f: Par[A]): Par[A] =
+    es =>
+      if (run(es)(cond).get) t(es)
+      else f(es)
+
+  def choiceViaChoiceN[A](cond: Par[Boolean])(t: Par[A], f: Par[A]): Par[A] =
+    choiceN(map(cond)(if (_) 0 else 1))(List(t, f))
+
+  def choiceN[A](n: Par[Int])(choices: List[Par[A]]): Par[A] =
+    es =>
+      choices.lift(run(es)(n).get).map(run(es) _).getOrElse(run(es)(choices(0)))
+
+  def choiceMap[K, V](k: Par[K])(choices: Map[K, Par[V]]): Par[V] =
+    es => choices(run(es)(k).get)(es)
+
+  // Alias to flatMap
+  def chooser[A, B](pa: Par[A])(choices: A => Par[B]): Par[B] =
+    flatMap(pa)(choices)
+
+  def choiceViaChooser[A](cond: Par[Boolean])(t: Par[A], f: Par[A]): Par[A] =
+    chooser(cond)(if (_) t else f)
+
+  def choiceNViaChooser[A](n: Par[Int])(choices: List[Par[A]]): Par[A] =
+    chooser(n)(i => choices(i))
+
+  def flatMap[A, B](pa: Par[A])(choices: A => Par[B]): Par[B] =
+    es => choices(run(es)(pa).get)(es)
+
+  def join[A](a: Par[Par[A]]): Par[A] =
+    es => {
+      val p = run(es)(a).get
+      run(es)(p)
+    }
+
+  def flatMapViaJoin[A, B](pa: Par[A])(choices: A => Par[B]): Par[B] =
+    join(map(pa)(a => choices(a)))
+  // join(map(pa)(f))
 }

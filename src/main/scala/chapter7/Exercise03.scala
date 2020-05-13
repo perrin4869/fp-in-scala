@@ -1,7 +1,7 @@
 package chapter7
 
 import java.util.concurrent.{Future, TimeUnit}
-import parallelism_deadlock._
+import parallelism._
 
 object Exercise03 extends App {
   def map2[A, B, C](a: Par[A], b: Par[B])(f: (A, B) => C): Par[C] =

@@ -1,4 +1,4 @@
-package chapter7.parallelism
+package chapter7.nonblocking
 
 import java.util.concurrent.{
   Callable,
@@ -13,6 +13,10 @@ sealed trait Future[A] {
 }
 
 object Par {
+  // run here is different from the blocking implementation
+  // the blocking implementation returns a cancellable Future[A]
+  // which alsogives the caller the flexebility of deciding how long
+  // to wait before blocking the call
   def run[A](es: ExecutorService)(p: Par[A]): A = {
     val ref = new AtomicReference[A]
     val latch = new CountDownLatch(1)
@@ -65,7 +69,7 @@ object Par {
   def eval(es: ExecutorService)(r: => Unit): Unit =
     es.submit(new Callable[Unit] { def call = r })
 
-  def lazyUnit[A](a: A): Par[A] = fork(unit(a))
+  def lazyUnit[A](a: => A): Par[A] = fork(unit(a))
 
   def map[A, B](pa: Par[A])(f: A => B): Par[B] =
     map2(pa, unit(()))((a, _) => f(a))
@@ -76,11 +80,15 @@ object Par {
   def sortPar(parList: Par[List[Int]]) = map(parList)(_.sorted)
 
   def sequence[A](ps: List[Par[A]]): Par[List[A]] =
-    // ps.foldLeft(unit(Nil: List[A]))(map2(_, _)((l, x) => x :: l))
-    // ps.foldRight(unit(Nil: List[A]))(map2(_, _)(_ :: _))
-    // Without the fork below, large lists cause a stack overflow when
-    // evaluating the futures
+    // Without the fork below, the main thread gets stack overflown due to
+    // excessive calls into nested map2 Future.apply, for large list inputs
+    // This way, map2's Future.apply is always executed in a new thread after
+    // the first call.
     ps.foldRight(unit(Nil: List[A]))((pa, pas) => map2(pa, fork(pas))(_ :: _))
+  // map(ps.foldLeft(unit(Nil: List[A]))(map2(_, _)((l, x) => x :: l)))(
+  //   _.reverse
+  // )
+  // ps.foldRight(unit(Nil: List[A]))(map2(_, _)(_ :: _))
 
   def parMap[A, B](as: List[A])(f: A => B): Par[List[B]] =
     sequence(as.map(asyncF(f)))

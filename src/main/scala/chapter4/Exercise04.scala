@@ -8,6 +8,14 @@ object Exercise04 extends App {
   //     x flatMap (xx => z.map(zz => xx :: zz))
   //   )
 
+  // def sequence[A](a: List[Option[A]]): Option[List[A]] =
+  //   a.foldRight(Some(Nil): Option[List[A]])((x, z) =>
+  //     for {
+  //       xx <- x
+  //       zz <- z
+  //     } yield xx :: zz
+  //   )
+
   def sequence[A](a: List[Option[A]]): Option[List[A]] =
     a.foldRight[Option[List[A]]](Some(Nil))((x, z) => map2(x, z)(_ :: _))
 

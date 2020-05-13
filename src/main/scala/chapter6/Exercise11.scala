@@ -38,17 +38,18 @@ object Exercise11 extends App {
   def update =
     (i: Input) =>
       (s: Machine) =>
-        (i, s) match {
+        i match {
+          // (i, s) match {
           // case (_, Machine(_, 0, _)) => s
 
           // Does the two above and handles zero candies case above
-          case (Coin, _) => insertCoin(s)
+          case Coin => insertCoin(s)
           // case (Coin, Machine(false, _, _)) => s
           // case (Coin, Machine(true, candy, coin)) =>
           //   Machine(false, candy, coin + 1)
 
           // Does the two above and handles zero candies case on the top
-          case (Turn, _) => turnKnob(s)
+          case Turn => turnKnob(s)
           // case (Turn, Machine(true, _, _)) => s
           // case (Turn, Machine(false, candy, coin)) =>
           //   Machine(true, candy - 1, coin)
@@ -68,6 +69,14 @@ object Exercise11 extends App {
     _ <- modify[Machine](update(Turn))
     s <- get
   } yield s
+
+  // val purchaseCandy = modify[Machine](update(Coin)).flatMap(_ =>
+  //   modify[Machine](update(Turn)).flatMap(_ => get.map(s => s))
+  // )
+
+  // val purchaseCandy = modify[Machine](update(Coin)).flatMap(_ =>
+  //   modify[Machine](update(Turn)).flatMap(_ => get)
+  // )
 
   println(purchaseCandy.run(Machine(true, 10, 4)))
 }

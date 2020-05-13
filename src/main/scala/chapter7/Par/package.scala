@@ -1,6 +1,6 @@
 package chapter7
 
-package object parallelism_deadlock {
+package object parallelism {
   // Using custom Future
   import java.util.concurrent.{ExecutorService, Future}
 

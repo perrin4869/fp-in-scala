@@ -1,5 +1,5 @@
 package chapter7
-import parallelism_deadlock._
+import parallelism._
 
 object Exercise02 extends App {
   case class Par[A](f: () => A)

@@ -1,7 +1,7 @@
 package chapter7
 
 import java.util.concurrent.Executors
-import parallelism_deadlock._
+import parallelism._
 
 object Exercise08 extends App {
   import Par._
