@@ -2,15 +2,15 @@ package parser
 
 object Exercise06 extends App {
 
-  def parser[Err, Parser[+_]](P: Parsers[Err, Parser]): Parser[List[Char]] = {
+  def parser[Parser[+_]](P: Parsers[Parser]): Parser[List[Char]] = {
     import P._
 
     "[0-9]+".r map (_.toInt) flatMap (char('a') listOfN (_))
   }
 
   // or from answers key
-  def parserFromAnswersKey[Err, Parser[+_]](
-      P: Parsers[Err, Parser]
+  def parserFromAnswersKey[Parser[+_]](
+      P: Parsers[Parser]
   ): Parser[Int] = {
     import P._
 

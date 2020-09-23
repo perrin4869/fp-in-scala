@@ -10,13 +10,15 @@ object JSON {
   case class JObject(get: Map[String, JSON]) extends JSON
 }
 
-object Exercise09 extends App {
+object Exercise09 {
   import JSON._
 
-  def jsonParser[Err, Parser[+_]](P: Parsers[Err, Parser]): Parser[JSON] = {
+  def jsonParser[Parser[+_]](P: Parsers[Parser]): Parser[JSON] = {
     import P._
 
-    val space: Parser[String] = "[\\s]".r
+    val space: Parser[String] = "\\s".r
+    val spaces: Parser[List[String]] = many(space)
+    // val spaces: Parser[String] = "\\s*".r
     val comma: Parser[String] = ","
     val colon: Parser[String] = ":"
 
@@ -42,14 +44,14 @@ object Exercise09 extends App {
 
     // succeed(JArray(IndexedSeq(JNumber(2))))
     def array: Parser[JArray] =
-      (jval surround (many(space), many(space))) sep (comma) surround ("[", "]") map (
+      ((jval) surround (spaces, spaces)) sep (comma) surround ("[", "]") map (
           vs => JArray(vs.toIndexedSeq)
       )
 
     def keyVal: Parser[(String, JSON)] =
-      jstring.map(_.get) ** ((colon surround (many(space), many(space))) *> jval)
+      jstring.map(_.get) ** ((colon surround (spaces, spaces)) *> jval)
     def obj: Parser[JObject] =
-      (keyVal surround (many(space), many(space))) sep (comma) surround ("{", "}") map (
+      (keyVal surround (spaces, spaces)) sep (comma) surround ("{", "}") map (
           kvs => JObject(kvs.toMap)
       )
 
@@ -57,6 +59,6 @@ object Exercise09 extends App {
 
     def jval: Parser[JSON] = primitives or array or obj
 
-    jval surround (many(space), many(space))
+    jval surround (spaces, spaces)
   }
 }
