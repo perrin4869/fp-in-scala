@@ -104,4 +104,27 @@ object Par {
 
   def delay[A](fa: => Par[A]): Par[A] =
     es => fa(es)
+
+  // Extra functionality used in later chapters but not mentioned/developed
+  // in the main text
+  // Taken from the answers key
+  def flatMap[A, B](p: Par[A])(f: A => Par[B]): Par[B] =
+    es =>
+      new Future[B] {
+        def apply(cb: B => Unit): Unit =
+          p(es)(a => f(a)(es)(cb))
+      }
+
+  def sequenceBalanced[A](as: IndexedSeq[Par[A]]): Par[IndexedSeq[A]] =
+    Par.fork {
+      if (as.isEmpty) unit(Vector())
+      else if (as.length == 1) map(as.head)(a => Vector(a))
+      else {
+        val (l, r) = as.splitAt(as.length / 2)
+        map2(sequenceBalanced(l), sequenceBalanced(r))(_ ++ _)
+      }
+    }
+
+  def parMap[A, B](as: IndexedSeq[A])(f: A => B): Par[IndexedSeq[B]] =
+    sequenceBalanced(as.map(asyncF(f)))
 }
