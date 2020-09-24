@@ -5,6 +5,7 @@ import scala.math.floor
 import chapter7.nonblocking._
 import chapter10.Monoid.Stub
 import chapter10.Monoid.Part
+import chapter3.{Tree, Leaf, Branch}
 
 trait Monoid[A] {
   def op(a1: A, a2: A): A
@@ -160,4 +161,127 @@ object Monoid {
         words + (if (lStub.isEmpty()) 0 else 1) + (if (rStub.isEmpty()) 0
                                                    else 1)
     }
+
+  // Exercise12
+  val foldableList = new Foldable[List] {
+    def foldRight[A, B](as: List[A])(z: B)(f: (A, B) => B): B =
+      as.foldRight(z)(f)
+
+    def foldLeft[A, B](as: List[A])(z: B)(f: (B, A) => B): B = as.foldLeft(z)(f)
+
+    def foldMap[A, B](as: List[A])(f: A => B)(mb: Monoid[B]): B =
+      as.foldRight(mb.zero)((a, b) => mb.op(f(a), b))
+
+  }
+
+  // Exercise12
+  val foldableIndexedSeq = new Foldable[IndexedSeq] {
+    def foldRight[A, B](as: IndexedSeq[A])(z: B)(f: (A, B) => B): B =
+      as.foldRight(z)(f)
+
+    def foldLeft[A, B](as: IndexedSeq[A])(z: B)(f: (B, A) => B): B =
+      as.foldLeft(z)(f)
+
+    def foldMap[A, B](as: IndexedSeq[A])(f: A => B)(mb: Monoid[B]): B =
+      foldMapV(as, mb)(f)
+
+  }
+
+  // Exercise12
+  val foldableStream = new Foldable[Stream] {
+    def foldRight[A, B](as: Stream[A])(z: B)(f: (A, B) => B): B =
+      as.foldRight(z)(f)
+
+    def foldLeft[A, B](as: Stream[A])(z: B)(f: (B, A) => B): B =
+      as.foldLeft(z)(f)
+
+    def foldMap[A, B](as: Stream[A])(f: A => B)(mb: Monoid[B]): B =
+      as.foldRight(mb.zero)((a, b) => mb.op(f(a), b))
+
+  }
+
+  // Exercise13
+  object TreeFoldable extends Foldable[Tree] {
+    def foldRight[A, B](as: Tree[A])(z: B)(f: (A, B) => B): B =
+      as match {
+        case Leaf(value) => f(value, z)
+        case Branch(left, right) =>
+          foldRight(left)(foldRight(right)(z)(f))(f)
+      }
+
+    def foldLeft[A, B](as: Tree[A])(z: B)(f: (B, A) => B): B =
+      as match {
+        case Leaf(value) => f(z, value)
+        case Branch(left, right) =>
+          foldLeft(right)(foldLeft(left)(z)(f))(f)
+      }
+
+    def foldMap[A, B](as: Tree[A])(f: A => B)(mb: Monoid[B]): B =
+      as match {
+        case Leaf(value) => f(value)
+        case Branch(left, right) =>
+          mb.op(foldMap(left)(f)(mb), foldMap(right)(f)(mb))
+      }
+
+  }
+
+  // Exercise14
+  val foldableOption = new Foldable[Option] {
+    def foldRight[A, B](as: Option[A])(z: B)(f: (A, B) => B): B =
+      as.foldRight(z)(f)
+
+    def foldLeft[A, B](as: Option[A])(z: B)(f: (B, A) => B): B =
+      as.foldLeft(z)(f)
+
+    def foldMap[A, B](as: Option[A])(f: A => B)(mb: Monoid[B]): B =
+      as.foldRight(mb.zero)((a, b) => mb.op(f(a), b))
+
+  }
+
+  // Exercise 16
+  def productMonoid[A, B](A: Monoid[A], B: Monoid[B]): Monoid[(A, B)] =
+    new Monoid[(A, B)] {
+      def op(a1: (A, B), a2: (A, B)): (A, B) =
+        (A.op(a1._1, a2._1), B.op(a1._2, a2._2))
+
+      def zero: (A, B) = (A.zero, B.zero)
+
+    }
+
+  def mapMergeMonoid[K, V](V: Monoid[V]): Monoid[Map[K, V]] =
+    new Monoid[Map[K, V]] {
+      def op(a1: Map[K, V], a2: Map[K, V]) =
+        (a1.keySet ++ a2.keySet).foldLeft(zero) { (acc, k) =>
+          acc.updated(k, V.op(a1.getOrElse(k, V.zero), a2.getOrElse(k, V.zero)))
+        }
+
+      def zero = Map[K, V]()
+
+    }
+
+  // Exercise17
+  def functionMonoid[A, B](B: Monoid[B]) = new Monoid[A => B] {
+    def op(a1: A => B, a2: A => B) = (a) => B.op(a1(a), a2(a))
+
+    def zero = (_) => B.zero
+
+  }
+
+  def bag[A](as: IndexedSeq[A]): Map[A, Int] =
+    foldMapV[A, Map[A, Int]](as, mapMergeMonoid(intAddition))((a => Map((a, 1)))
+    )
+}
+
+trait Foldable[F[_]] {
+  def foldRight[A, B](as: F[A])(z: B)(f: (A, B) => B): B
+  def foldLeft[A, B](as: F[A])(z: B)(f: (B, A) => B): B
+  def foldMap[A, B](as: F[A])(f: A => B)(mb: Monoid[B]): B
+  def concatenate[A](as: F[A])(m: Monoid[A]): A =
+    foldLeft(as)(m.zero)(m.op)
+
+  // Exercise15
+  def toList[A](fa: F[A]): List[A] =
+    foldMap(fa)(List(_))(Monoid.listMonoid)
+  // From Answers Key:
+  // foldRight(fa)(Nil: List[A])(_ :: _)
 }
