@@ -77,6 +77,16 @@ object Par {
   def asyncF[A, B](f: A => B): A => Par[B] =
     a => lazyUnit(f(a))
 
+  /**
+    * Helper function for constructing `Par` values out of calls to non-blocking continuation-passing-style APIs.
+    * This will come in handy in Chapter 13.
+    */
+  def async[A](f: (A => Unit) => Unit): Par[A] =
+    es =>
+      new Future[A] {
+        def apply(k: A => Unit) = f(k)
+      }
+
   def sortPar(parList: Par[List[Int]]) = map(parList)(_.sorted)
 
   def sequence[A](ps: List[Par[A]]): Par[List[A]] =
@@ -102,8 +112,13 @@ object Par {
   def equal[A](e: ExecutorService)(p: Par[A], p2: Par[A]): Boolean =
     run(e)(p) == run(e)(p2) // written by me
 
-  def delay[A](fa: => Par[A]): Par[A] =
-    es => fa(es)
+  /** A non-strict version of `unit` */
+  def delay[A](a: => A): Par[A] =
+    es =>
+      new Future[A] {
+        def apply(cb: A => Unit): Unit =
+          cb(a)
+      }
 
   // Extra functionality used in later chapters but not mentioned/developed
   // in the main text
